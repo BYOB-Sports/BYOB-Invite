@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BYOB Sports - Open in App</title>
+  <script>
+    // Extract matchId and invite_token from URL
+    const params = new URLSearchParams(window.location.search);
+    const matchId = params.get('matchId');
+    const inviteToken = params.get('invite_token');
+    
+    // Create deep link
+    const deepLink = `byobsports://matches/invite?invite_token=${inviteToken}&matchId=${matchId}`;
+    
+    // Try to open the app
+    window.location.href = deepLink;
+    
+    // Fallback to app store after a delay
+    setTimeout(function() {
+      // iOS App Store link
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        window.location.href = 'https://apps.apple.com/app/YOUR_APP_ID';
+      }
+      // Google Play Store link
+      else if (/Android/i.test(navigator.userAgent)) {
+        window.location.href = 'https://play.google.com/store/apps/details?id=com.byob.sports';
+      }
+    }, 2000);
+  </script>
+</head>
+<body>
+  <div style="text-align: center; padding-top: 100px; font-family: Arial, sans-serif;">
+    <h1>Opening BYOB Sports...</h1>
+    <p>If nothing happens, <a id="deeplink" href="#">click here to open the app</a> or download it from the app store.</p>
+  </div>
+  <script>
+    document.getElementById('deeplink').href = deepLink;
+  </script>
+</body>
+</html>
