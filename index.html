@@ -13,18 +13,7 @@
     
     // Try to open the app
     window.location.href = deepLink;
-    
-    // Fallback to app store after a delay
-    setTimeout(function() {
-      // iOS App Store link
-      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        window.location.href = 'https://apps.apple.com/us/app/byob-sports/id6751515573';
-      }
-      // Google Play Store link
-      else if (/Android/i.test(navigator.userAgent)) {
-        window.location.href = 'https://play.google.com/store/apps/details?id=com.byob.sports';
-      }
-    }, 2000);
+
   </script>
 </head>
 <body>
