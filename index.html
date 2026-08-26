@@ -81,6 +81,38 @@
     (function () {
       var id = new URLSearchParams(window.location.search).get('matchId');
 
+      // Best-effort tab close, requested so the browser does not linger after
+      // handing off to the app.
+      //
+      // Read this before "fixing" it: iOS Safari REFUSES to close a tab it did
+      // not open via script. MDN, Window.close(): a window is script-closable
+      // only if web content opened it (window.open, or <a target="_blank">);
+      // otherwise the call just logs "Scripts may not close windows that were
+      // not opened by script" and does nothing. A link tapped from another app
+      // opens the tab via the OS, so that is the common case and it will NOT
+      // close. It DOES work in in-app browsers that opened us with window.open.
+      // Never throws, so it is free to attempt.
+      //
+      // The only thing that actually stops the browser appearing at all is
+      // Universal Links (associatedDomains + an apple-app-site-association
+      // served as application/json from the domain root). GitHub Pages cannot
+      // serve that file correctly, so it needs a different host.
+      function tryClose() {
+        try { window.close(); } catch (e) {}
+      }
+
+      // Trigger the close on RETURN, not immediately. The app taking over hides
+      // this page; becoming visible again means the user has come back to a tab
+      // they no longer need. Closing on a timer instead would strand anyone
+      // whose app never opened - they would lose the button and the store links
+      // with nothing to show for it.
+      var handedOff = false;
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) handedOff = true;
+        else if (handedOff) tryClose();
+      });
+
+
       // A missing id means a malformed share link. Redirecting anyway would
       // land the app on "matches/null", so show the fallbacks instead.
       if (!id) {
@@ -98,20 +130,6 @@
         // replace(), not href: leaves no history entry, so Back in Safari does
         // not re-fire the "Open in BYOB Sports?" prompt in a loop.
         window.location.replace(deepLink);
-      }
-
-      // TEMPORARY A/B, remove once a mode is chosen.
-      //   default   - auto-redirect on load (one iOS "Open this page in ...?"
-      //               dialog, no tap needed if the user accepts it)
-      //   ?tap=1    - no auto-redirect; the user taps the button, which opens
-      //               the app directly and usually shows no dialog at all
-      // Both were built because the auto-redirect's dialog is what makes the
-      // manual button unreliable afterwards, and it is a genuine UX trade-off
-      // rather than a correctness question.
-      if (new URLSearchParams(window.location.search).get('tap') === '1') {
-        document.getElementById('heading').textContent = 'Open this match in BYOB Sports';
-        document.getElementById('sub').textContent = 'Tap the button below.';
-        return;
       }
 
       // Two frames after load guarantees the body has painted before we navigate.
