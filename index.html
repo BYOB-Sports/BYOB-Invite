@@ -12,8 +12,13 @@
       margin: 0;
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
+      /* Top-aligned, NOT vertically centred. iOS anchors its "Open this page
+         in <app>?" dialog to the middle of the viewport, so a centred layout
+         puts the primary button directly underneath it and the tap hits the
+         dialog instead of the button. Keep the button well above centre. */
+      padding-top: 56px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       background: #fff;
       color: #111;
@@ -35,8 +40,8 @@
     }
     .btn.primary { background: #111; color: #fff; }
     .btn.secondary { background: transparent; border: 1px solid #ccc; color: #111; font-weight: 500; }
-    #stores { display: none; }
-    #stores.show { display: block; }
+    .stores { font-size: 14px; margin: 22px 0 0; opacity: .6; }
+    .stores a { color: inherit; }
 
     /* Dark rules go LAST. They carry the same specificity as the light rules
        above, so source order decides the winner — moved earlier, the light
@@ -57,10 +62,7 @@
 
     <a class="btn primary" id="open" href="#">Open in the app</a>
 
-    <div id="stores">
-      <a class="btn secondary" href="https://apps.apple.com/us/app/byob-sports-social-tennis-app/id6751515573">Download for iPhone</a>
-      <a class="btn secondary" href="https://play.google.com/store/apps/details?id=com.byobsports">Download for Android</a>
-    </div>
+    <p class="stores">Don't have the app? <a href="https://apps.apple.com/us/app/byob-sports-social-tennis-app/id6751515573">iPhone</a> &middot; <a href="https://play.google.com/store/apps/details?id=com.byobsports">Android</a></p>
   </main>
 
   <!--
@@ -86,7 +88,6 @@
         document.getElementById('sub').textContent =
           'It is missing the match it should open. Open BYOB Sports and look for it there.';
         document.getElementById('open').href = 'byobsports://';
-        document.getElementById('stores').className = 'show';
         return;
       }
 
@@ -97,15 +98,6 @@
         // replace(), not href: leaves no history entry, so Back in Safari does
         // not re-fire the "Open in BYOB Sports?" prompt in a loop.
         window.location.replace(deepLink);
-
-        // Still visible after the handoff window means the app almost certainly
-        // is not installed. Offer the stores.
-        setTimeout(function () {
-          if (document.visibilityState === 'visible') {
-            document.getElementById('heading').textContent = 'Open this match in BYOB Sports';
-            document.getElementById('stores').className = 'show';
-          }
-        }, 2000);
       }
 
       // Two frames after load guarantees the body has painted before we navigate.
