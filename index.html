@@ -100,6 +100,20 @@
         window.location.replace(deepLink);
       }
 
+      // TEMPORARY A/B, remove once a mode is chosen.
+      //   default   - auto-redirect on load (one iOS "Open this page in ...?"
+      //               dialog, no tap needed if the user accepts it)
+      //   ?tap=1    - no auto-redirect; the user taps the button, which opens
+      //               the app directly and usually shows no dialog at all
+      // Both were built because the auto-redirect's dialog is what makes the
+      // manual button unreliable afterwards, and it is a genuine UX trade-off
+      // rather than a correctness question.
+      if (new URLSearchParams(window.location.search).get('tap') === '1') {
+        document.getElementById('heading').textContent = 'Open this match in BYOB Sports';
+        document.getElementById('sub').textContent = 'Tap the button below.';
+        return;
+      }
+
       // Two frames after load guarantees the body has painted before we navigate.
       window.addEventListener('load', function () {
         requestAnimationFrame(function () { requestAnimationFrame(redirect); });
