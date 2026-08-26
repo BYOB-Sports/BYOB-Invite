@@ -1,0 +1,21 @@
+name: Redirect Gate
+
+# Fails the build if a deep-link redirect page navigates from inside <head>.
+# That shape ships a blank page to iOS Safari: the app opens, but the browser
+# tab left behind never parsed a body. See scripts/check-redirect.mjs.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: No navigation inside <head>
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/check-redirect.mjs .
