@@ -40,8 +40,12 @@
     }
     .btn.primary { background: #111; color: #fff; }
     .btn.secondary { background: transparent; border: 1px solid #ccc; color: #111; font-weight: 500; }
-    .stores { font-size: 14px; margin: 22px 0 0; opacity: .6; }
-    .stores a { color: inherit; }
+    /* Always rendered, never revealed on a timer. An earlier version showed
+       these after 2s if document.visibilityState was still 'visible' - but
+       that stays 'visible' behind the iOS confirm dialog, so the reveal fired
+       for everyone, including users whose app opened fine, and read as
+       buttons popping in at staggered times. */
+    .stores-label { font-size: 14px; margin: 26px 0 10px; opacity: .6; }
 
     /* Dark rules go LAST. They carry the same specificity as the light rules
        above, so source order decides the winner — moved earlier, the light
@@ -62,7 +66,9 @@
 
     <a class="btn primary" id="open" href="#">Open in the app</a>
 
-    <p class="stores">Don't have the app? <a href="https://apps.apple.com/us/app/byob-sports-social-tennis-app/id6751515573">iPhone</a> &middot; <a href="https://play.google.com/store/apps/details?id=com.byobsports">Android</a></p>
+    <p class="stores-label">Don't have the app?</p>
+    <a class="btn secondary" href="https://apps.apple.com/us/app/byob-sports-social-tennis-app/id6751515573">Download for iPhone</a>
+    <a class="btn secondary" href="https://play.google.com/store/apps/details?id=com.byobsports">Download for Android</a>
   </main>
 
   <!--
