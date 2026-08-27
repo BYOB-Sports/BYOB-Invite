@@ -30,12 +30,6 @@ function htmlFiles(root) {
   const walk = (dir) => {
     for (const entry of readdirSync(dir)) {
       if (entry === 'node_modules' || entry === '.git') continue;
-      // TEMPORARY, 2026-08-27. `legacy-test/` holds a byte-for-byte copy of the
-      // pre-fix page purely so it can be A/B'd against the current one on a
-      // physical device. It deliberately violates this rule — that is the whole
-      // point of it — so it is skipped rather than the rule being loosened.
-      // DELETE `legacy-test/` and this branch together once the comparison is done.
-      if (entry === 'legacy-test') continue;
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) walk(full);
       else if (entry.endsWith('.html')) out.push(full);
