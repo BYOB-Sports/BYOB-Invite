@@ -127,15 +127,31 @@
       document.getElementById('open').href = deepLink;
 
       function redirect() {
-        // replace(), not href: leaves no history entry, so Back in Safari does
-        // not re-fire the "Open in BYOB Sports?" prompt in a loop.
-        window.location.replace(deepLink);
+        // Assignment, not replace(): this is the exact form measured to skip
+        // the iOS confirmation prompt. Do not "tidy" it into replace()
+        // without re-testing the prompt on a device.
+        window.location.href = deepLink;
       }
 
-      // Two frames after load guarantees the body has painted before we navigate.
-      window.addEventListener('load', function () {
-        requestAnimationFrame(function () { requestAnimationFrame(redirect); });
-      }, { once: true });
+      // Fire NOW, synchronously, at the end of <body>.
+      //
+      // The timing is load-bearing in BOTH directions and was settled on a
+      // device, not from docs:
+      //
+      //   too early (from <head>) - the parser has not reached <body>, the
+      //     navigation commits against a body-less document, and Safari is
+      //     left showing a blank white page with no fallback button.
+      //
+      //   too late (window 'load' + requestAnimationFrame) - the document has
+      //     finished loading, so iOS treats byobsports:// as a fresh scripted
+      //     navigation and interrupts with "Open this page in BYOB Sports?".
+      //     Verified on an iPhone 17 Pro simulator: that prompt appears with
+      //     the deferred form and does NOT appear with this one.
+      //
+      // Here at the end of <body> the body is fully parsed but the document
+      // load is still in flight, which satisfies both: no prompt, and a real
+      // rendered page waiting behind the app.
+      redirect();
     })();
   </script>
 </body>
