@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
-  <title>BYOB Sports — Open match</title>
+  <title>BYOB Sports — Open link</title>
   <style>
     :root { color-scheme: light dark; }
     * { box-sizing: border-box; }
@@ -85,7 +85,25 @@
   -->
   <script>
     (function () {
-      var id = new URLSearchParams(window.location.search).get('matchId');
+      // Share-link query param -> in-app route segment. Mirrors SHARE_ROUTES for
+      // '/BYOB-Invite' in the app's utils/appLinks.ts. A match that belongs to a
+      // group is still a match: it is shared with ?matchId= and opens
+      // matches/<id>. ?groupId= opens the group itself.
+      //
+      // scripts/check-redirect.mjs fails CI if a param listed there is missing
+      // from this table, so a new share param cannot ship unhandled.
+      var TARGETS = [
+        { param: 'matchId', segment: 'matches' },
+        { param: 'groupId', segment: 'groups' }
+      ];
+
+      var query = new URLSearchParams(window.location.search);
+      var target = null;
+      var id = null;
+      for (var i = 0; i < TARGETS.length; i++) {
+        var value = query.get(TARGETS[i].param);
+        if (value) { target = TARGETS[i]; id = value; break; }
+      }
 
       // Best-effort tab close, requested so the browser does not linger after
       // handing off to the app.
@@ -121,15 +139,15 @@
 
       // A missing id means a malformed share link. Redirecting anyway would
       // land the app on "matches/null", so show the fallbacks instead.
-      if (!id) {
+      if (!target) {
         document.getElementById('heading').textContent = 'This link is incomplete';
         document.getElementById('sub').textContent =
-          'It is missing the match it should open. Open BYOB Sports and look for it there.';
+          'It is missing the match or group it should open. Open BYOB Sports and look for it there.';
         document.getElementById('open').href = 'byobsports://';
         return;
       }
 
-      var deepLink = 'byobsports://matches/' + encodeURIComponent(id);
+      var deepLink = 'byobsports://' + target.segment + '/' + encodeURIComponent(id);
       document.getElementById('open').href = deepLink;
 
       function redirect() {
