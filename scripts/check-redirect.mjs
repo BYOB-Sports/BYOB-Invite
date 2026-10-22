@@ -18,7 +18,7 @@
  * Verified to FAIL on every pre-fix page (see check-redirect.test.mjs).
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -73,18 +73,42 @@ for (const file of htmlFiles(root)) {
   });
 }
 
-if (!failures.length) {
-  console.log('OK — no navigation inside <head> in any HTML file.');
+// Share-link params the app emits to this page (shareMatchLink, shareGroupLink
+// in the app's utils/links.ts). index.html must route every one: a param it does
+// not know falls into "This link is incomplete" and the app opens on home, which
+// is how ?groupId= links shipped broken. Add a param here AND to TARGETS in
+// index.html together.
+const REQUIRED_PARAMS = ['matchId', 'groupId'];
+
+const missingParams = [];
+const indexPath = join(root, 'index.html');
+if (existsSync(indexPath)) {
+  const html = readFileSync(indexPath, 'utf8');
+  for (const param of REQUIRED_PARAMS) {
+    if (!new RegExp(`param:\\s*['"]${param}['"]`).test(html)) missingParams.push(param);
+  }
+}
+
+if (!failures.length && !missingParams.length) {
+  console.log('OK — no navigation inside <head>; every share param is routed.');
   process.exit(0);
 }
 
-console.error('Navigation found inside <head>. This ships a blank page on iOS Safari.\n');
-for (const f of failures) {
-  console.error(`  ${f.file}:${f.line}`);
-  console.error(`    ${f.text}`);
+if (failures.length) {
+  console.error('Navigation found inside <head>. This ships a blank page on iOS Safari.\n');
+  for (const f of failures) {
+    console.error(`  ${f.file}:${f.line}`);
+    console.error(`    ${f.text}`);
+  }
+  console.error(
+    '\nMove the redirect to a <script> after </head>, at the end of <body>, so the\n' +
+    'page paints before it navigates. See the comment at the top of this file.'
+  );
 }
-console.error(
-  '\nMove the redirect to a <script> after </head>, at the end of <body>, so the\n' +
-  'page paints before it navigates. See the comment at the top of this file.'
-);
+if (missingParams.length) {
+  console.error(
+    `index.html does not route share param(s): ${missingParams.join(', ')}.\n` +
+    'Add them to TARGETS in index.html, or the link opens the app on home instead of its target.'
+  );
+}
 process.exit(1);
