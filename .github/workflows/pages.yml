@@ -1,0 +1,52 @@
+name: Deploy Pages
+
+# Deploys only after the page passes its checks. With the Pages source set to
+# "GitHub Actions" this is the ONLY way the site goes live, so a page that fails
+# check-redirect or the smoke test is never served. (The older "deploy from a
+# branch" source published first and checked after.)
+#
+# The site is exactly index.html. Add a file to the `Stage site` step if the
+# page ever needs another asset.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Gate before deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/check-redirect.mjs .
+      - run: node scripts/smoke-test.mjs
+      - name: Stage site
+        run: |
+          mkdir _site
+          cp index.html _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
