@@ -19,3 +19,4 @@ jobs:
         with:
           node-version: '20'
       - run: node scripts/check-redirect.mjs .
+      - run: node scripts/smoke-test.mjs
