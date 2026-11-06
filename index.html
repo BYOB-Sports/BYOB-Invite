@@ -72,6 +72,79 @@
   </main>
 
   <!--
+    Page-view beacon. Its OWN script, BEFORE the redirect script, so a failure
+    here cannot stop the redirect. Best effort: every path is inside try/catch,
+    nothing is awaited, and sendBeacon only queues the request.
+
+    It must come BEFORE the redirect, not after. Once the redirect assigns
+    location, iOS Safari does not run any later script on the page. Measured on
+    an iOS 26.5 simulator: a script placed after the redirect never ran, so no
+    event was sent. sendBeacon exists for this case: a request queued before the
+    navigation is still delivered.
+
+    What it sends, and nothing else: the share-link id (or null), the surface
+    (match or group), the page, a coarse browser class (ios, android, other), a
+    random per-view id that is never stored, and a timestamp. It never sends the
+    entity id the link points at. Mixpanel receives no `ip` parameter, so it adds
+    no city or region.
+
+    The token below is the same write-only project token the app ships; it can
+    only add events.
+
+    scripts/smoke-test.mjs runs this script in CI and pins every rule above.
+  -->
+  <script>
+    (function () {
+      try {
+        // Skip background loads (link-preview fetchers that run scripts) and
+        // automation: neither is a person looking at the page.
+        if (document.visibilityState !== 'visible' || navigator.webdriver) return;
+
+        var query = new URLSearchParams(window.location.search);
+        var SURFACES = [
+          { param: 'matchId', surface: 'match' },
+          { param: 'groupId', surface: 'group' }
+        ];
+        var surface = null;
+        for (var i = 0; i < SURFACES.length; i++) {
+          if (query.get(SURFACES[i].param)) { surface = SURFACES[i].surface; break; }
+        }
+        // No target means a malformed link, which the redirect script already
+        // answered with the "incomplete" message. Not a view.
+        if (!surface) return;
+
+        var sl = query.get('sl');
+        var linkId = /^[a-z0-9]{8}$/.test(sl || '') ? sl : null;
+
+        var agent = navigator.userAgent || '';
+        var uaClass = /iPhone|iPad|iPod/.test(agent) ? 'ios' : /Android/.test(agent) ? 'android' : 'other';
+
+        var now = Date.now();
+        var rand = Math.random().toString(36).slice(2, 12);
+        var payload = {
+          event: 'Link Page Viewed',
+          properties: {
+            token: '4b74de37e8c62763b91ccbce4bd06a2f',
+            distinct_id: 'lp-' + rand,
+            time: now,
+            $insert_id: 'lp-' + now + '-' + rand,
+            link_id: linkId,
+            surface: surface,
+            page: 'BYOB-Invite',
+            ua_class: uaClass
+          }
+        };
+
+        var body = new URLSearchParams();
+        body.append('data', JSON.stringify(payload));
+        // Form-encoded body: a CORS-safelisted type, so no preflight. Mixpanel
+        // /track reads the `data` field; a raw JSON body is rejected.
+        if (navigator.sendBeacon) navigator.sendBeacon('https://api.mixpanel.com/track', body);
+      } catch (e) {}
+    })();
+  </script>
+
+  <!--
     The redirect fires from the END of <body>, never from <head>.
 
     Assigning location during head parsing commits a navigation before the body
@@ -147,7 +220,13 @@
         return;
       }
 
-      var deepLink = 'byobsports://' + target.segment + '/' + encodeURIComponent(id);
+      // Forward the share-link tracking id (`sl`) so the app can join this open
+      // to the share that produced it. Only a well-formed id is forwarded: the
+      // value lands in a URL handed to another app, so anything else is dropped.
+      // Same pattern as the app's utils/linkId.ts.
+      var sl = new URLSearchParams(window.location.search).get('sl');
+      var linkId = /^[a-z0-9]{8}$/.test(sl || '') ? sl : null;
+      var deepLink = 'byobsports://' + target.segment + '/' + encodeURIComponent(id) + (linkId ? '?sl=' + linkId : '');
       document.getElementById('open').href = deepLink;
 
       function redirect() {
