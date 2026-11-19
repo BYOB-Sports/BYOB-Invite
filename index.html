@@ -65,6 +65,7 @@
     <p id="sub">If the app didn't open, use the button below.</p>
 
     <a class="btn primary" id="open" href="#">Open in the app</a>
+    <a class="btn secondary" id="web" href="https://play.byobsports.com/">Continue in browser</a>
 
     <p class="stores-label">Don't have the app?</p>
     <a class="btn secondary" href="https://apps.apple.com/us/app/byob-sports-social-tennis-app/id6751515573">Download for iPhone</a>
@@ -228,6 +229,24 @@
       var linkId = /^[a-z0-9]{8}$/.test(sl || '') ? sl : null;
       var deepLink = 'byobsports://' + target.segment + '/' + encodeURIComponent(id) + (linkId ? '?sl=' + linkId : '');
       document.getElementById('open').href = deepLink;
+
+      // "Continue in browser": the same target on the web app. The app route is
+      // the deep link's path, so the web address is that path on the web origin.
+      // This only sets a link. Nothing navigates here, so the redirect below keeps
+      // the timing that was settled on a device. The fallback above (an incomplete
+      // link) leaves the button on the web home page.
+      //
+      // An invite link also carries a token. The web app has an invite screen that
+      // a signed-out visitor can use, so a match link with a well-formed token goes
+      // there. The token is limited to the characters a signed token uses, so
+      // nothing else can ride along in the address. The native deep link above is
+      // unchanged and still ignores the token.
+      var webPath = deepLink.slice('byobsports://'.length);
+      var inviteToken = new URLSearchParams(window.location.search).get('invite_token');
+      if (target.segment === 'matches' && /^[A-Za-z0-9._-]+$/.test(inviteToken || '')) {
+        webPath = 'matches/invite?invite_token=' + inviteToken + (linkId ? '&sl=' + linkId : '');
+      }
+      document.getElementById('web').href = 'https://play.byobsports.com/' + webPath;
 
       function redirect() {
         // Assignment, not replace(): this is the exact form measured to skip

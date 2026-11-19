@@ -19,6 +19,16 @@ import vm from 'node:vm';
 const PAGE = 'BYOB-Invite';
 // [query string, expected deep link, or null when the page must show "incomplete"]
 const REDIRECT_CASES = [["?matchId=abc123", "byobsports://matches/abc123"], ["?groupId=g-9", "byobsports://groups/g-9"], ["?matchId=m1&groupId=g1", "byobsports://matches/m1"], ["?matchId=a%20b%2Fc", "byobsports://matches/a%20b%2Fc"], ["?matchId=m1&invite_token=tok", "byobsports://matches/m1"], ["", null], ["?foo=bar", null], ["?matchId=", null]];
+const WEB_HOME = 'https://play.byobsports.com/';
+// The web address a link maps to: the deep link's path on the web origin. A match
+// link with an invite token goes to the web invite screen instead.
+const webFor = (search, expected) => {
+  const token = new URLSearchParams(search).get('invite_token');
+  if (expected.startsWith('byobsports://matches/') && /^[A-Za-z0-9._-]+$/.test(token || '')) {
+    return `${WEB_HOME}matches/invite?invite_token=${token}`;
+  }
+  return WEB_HOME + expected.slice('byobsports://'.length);
+};
 const SURFACE_CASES = [["?matchId=m-SECRET1", "match", "m-SECRET1"], ["?groupId=g-SECRET2", "group", "g-SECRET2"]];
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -37,6 +47,8 @@ check(
 );
 const scripts = scriptTags.map((m) => m[2]);
 check(scripts.length > 0, 'no inline script found');
+// The button ships pointing at the web home page, so an incomplete link still has a way out.
+check(html.includes('id="web" href="' + WEB_HOME + '"'), 'the browser button markup must default to the web home page');
 
 /** Drop comments so prose such as "let the app" cannot trip the ES5 check. */
 const withoutComments = (code) =>
@@ -135,12 +147,18 @@ for (const [search, expected] of REDIRECT_CASES) {
       `${label}: did not show the "incomplete" message`,
     );
     check(result.elements.open?.href === 'byobsports://', `${label}: fallback button should open byobsports://`);
+    check(!result.elements.web?.href, `${label}: the script must leave the browser button alone for an incomplete link`);
   } else {
     check(
       result.navigations.length === 1 && result.navigations[0] === expected,
       `${label}: expected exactly one navigation to ${expected}, got ${JSON.stringify(result.navigations)}`,
     );
     check(result.elements.open?.href === expected, `${label}: the button href should equal the deep link`);
+    const expectedWeb = webFor(search, expected);
+    check(
+      result.elements.web?.href === expectedWeb,
+      `${label}: the browser button should be ${expectedWeb}, got ${result.elements.web?.href}`,
+    );
   }
 }
 
@@ -198,10 +216,12 @@ for (const [search, expectedSurface, secret] of SURFACE_CASES) {
     `valid sl must be forwarded to the deep link, got ${JSON.stringify(good.navigations)}`,
   );
   check(good.events[0]?.event.properties.link_id === 'abcd1234', 'valid sl must be reported as link_id');
+  check(good.elements.web?.href.endsWith('?sl=abcd1234') || good.elements.web?.href.endsWith('&sl=abcd1234'), `valid sl must reach the browser button, got ${good.elements.web?.href}`);
 
   const none = run(base);
   check(!none.navigations[0]?.includes('sl='), 'no sl in the link means none in the deep link');
   check(none.events[0]?.event.properties.link_id === null, 'no sl means link_id null');
+  check(!none.elements.web?.href.includes('sl='), 'no sl in the link means none on the browser button');
 
   for (const bad of ['ABCD1234', 'abcd123', 'abcd12345', 'abcd123!', 'abcd%0a123', '', 'abcd1234%26x=1', '%3Cscript%3E']) {
     const r = run(`${base}${joiner}sl=${bad}`);
@@ -210,6 +230,7 @@ for (const [search, expectedSurface, secret] of SURFACE_CASES) {
       `malformed sl "${bad}" must not reach the deep link, got ${JSON.stringify(r.navigations)}`,
     );
     check(r.events[0]?.event.properties.link_id === null, `malformed sl "${bad}" must be reported as null`);
+    check(!r.elements.web?.href.includes('sl='), `malformed sl "${bad}" must not reach the browser button, got ${r.elements.web?.href}`);
   }
 
   // The beacon is best effort and must never affect the redirect.
